@@ -1,0 +1,16 @@
+# defaults:
+#   - default
+
+# _target_: tracklab.wrappers.ExternalVideo
+_target_: sn_gamestate.wrappers.ExternalVideo
+
+video_path: "C:/Users/kiril/_data/Projects/FootballPlayer/Dataset/121364_0_part2.mp4"
+# video_path: "D:/Dataset/Football/play_101022025_part1.mp4"
+
+# video_path: "https: Youtube video link"
+# video_path: "PATH/TO/FOLDER_WITH_IMAGES"
+# nframes: 100  # Number of frames to process; set to -1 or leave unset to process all frames
+# nvid: -1  # Number of videos to process; set to -1 or leave unset to process all videos
+# vids_dict:  # Video names for each split (e.g., train, val, test)
+#   train: []  # Use all videos if left empty
+#   val: []  # Use all videos if left empty

@@ -1,0 +1,15 @@
+# _target_: sn_gamestate.wrappers.bbox_detector.yolo_ultralytics_api.YOLOUltralytics
+_target_: sn_gamestate.wrappers.bbox_detector.yolo_onnx_api.YOLOOnnx
+batch_size: 8
+cfg:
+  # models available :
+  # yolo11n.pt yolo11s.pt yolo11m.pt yolo11l.pt yolo11x.pt
+  # those models will be downloaded automatically if not found in the path
+  # path_to_checkpoint: "${model_dir}/yolo/yolo11m.pt"
+  # path_to_checkpoint: "${model_dir}/yolo/yolov11m_football_epoch300.pt"
+  # path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_best.onnx"
+  path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_batch16_varinput.onnx" 
+  # path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_640_batch16_fp16_simplified.engine"   
+  use_slicer: False
+  classes: ["ball", "goalkeeper", "person", "player", "referee"]
+  min_confidence: 0.4

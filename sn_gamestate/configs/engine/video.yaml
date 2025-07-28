@@ -1,0 +1,13 @@
+# _target_: tracklab.engine.VideoOnlineTrackingEngine
+_target_: sn_gamestate.engine.video_inference.VideoOnlineTrackingEngine
+
+filename: "C:/Users/kiril/_data/Projects/FootballPlayer/DAtaset/121364_0_part2.mp4"
+# filename: "D:/Dataset/Football/play_101022025_part1.mp4"
+target_fps: 15
+num_workers: ${num_cores}
+callbacks:
+  progress:
+    _target_: sn_gamestate.callbacks.progress.Progressbar
+  vis: ${visualization}
+  # mot_saver: 
+  #   _target_: sn_gamestate.callbacks.save_results.ResultsSaver

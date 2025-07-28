@@ -1,0 +1,43 @@
+defaults:
+  - colors_gs # For more specific color tuning
+
+# _target_: tracklab.visualization.VisualizationEngine
+_target_: sn_gamestate.visualization.visualization_engine_custom.VisualizationEngineCustom
+
+save_videos: True
+save_images: True
+save_dir: ${project_dir}/outputs/visualization
+
+visualizers:
+  # Available Visualizers:
+  # - Detections: DefaultDetection, FullDetection, DebugDetection, EllipseDetection,
+  #               SimpleDetectionStats, DetectionStats
+  # - Keypoints: DefaultKeypoints, FullKeypoints
+  # - Tracking: TrackingLine # shows tracking history
+  # - Images: FrameCount, IgnoreRegions
+  # - Players: Player, PlayerEllipse, CompletePlayerEllipse
+  # - Pitch: Pitch
+  # - Radar: Radar
+  # frame_counter:
+    # _target_: tracklab.visualization.FrameCount
+  # pitch:
+  #   _target_: sn_gamestate.visualization.Pitch
+  # tracking:
+  #   _target_: tracklab.visualization.TrackingLine  
+  players:
+    # _target_: sn_gamestate.visualization.CompletePlayerEllipse
+    _target_: sn_gamestate.visualization.SimplePlayerEllipse
+  # radar:
+  #   _target_: sn_gamestate.visualization.Radar
+
+# Color settings for visualization.
+colors:
+  # Choose the color to display:
+  # - null: No display.
+  # - RGB code: A color in [R, G, B] format.
+  # - team: A color based on the assigned team (left or right - can be modified in colors_gs file).
+  # - track_id: A color based on the tracking ID (for prediction or ground_truth only).
+  default:
+    no_id: null  # Color setting for objects with no ID (null means no display).
+    prediction: "team"  # Color setting for tracked predictions, based on team.
+    ground_truth: null  # Color setting for ground truth, specified as an RGB value.
