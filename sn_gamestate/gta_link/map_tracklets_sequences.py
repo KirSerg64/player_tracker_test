@@ -78,7 +78,7 @@ def get_closest_tracklets_full_matrix(
     start_bboxes = {}
     start_delta = start_tracklets['time_delta'] - start_window    
     for track_id, tracklet in start_tracklets['tracklets'].items():
-        ids = np.nonzero(tracklet.times > start_delta)[0]
+        ids = np.nonzero(np.asarray(tracklet.times) > start_delta)[0]
         if ids.shape[0] > 0:
             if track_id not in start_bboxes:
                 start_bboxes[track_id] = np.asarray(tracklet.bboxes)[ids]

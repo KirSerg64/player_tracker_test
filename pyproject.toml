@@ -3,7 +3,7 @@ name = "sn-gamestate"
 version = "0.2.0"
 description = "A Framework for football players identification"
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 
 dependencies = [
     "tracklab",
