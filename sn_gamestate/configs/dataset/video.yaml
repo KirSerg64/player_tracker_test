@@ -5,7 +5,7 @@
 _target_: sn_gamestate.wrappers.ExternalVideo
 
 video_path: "C:/Users/kiril/_data/Projects/FootballPlayer/Dataset/121364_0_part2.mp4"
-# video_path: "D:/Dataset/Football/play_101022025_part1.mp4"
+# video_path: "F:\\Dataset\\7_06_15fps_2min.mp4"
 
 # video_path: "https: Youtube video link"
 # video_path: "PATH/TO/FOLDER_WITH_IMAGES"

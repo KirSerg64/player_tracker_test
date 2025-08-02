@@ -1,0 +1,54 @@
+# Example Pipeline Configuration with GTA Link Modules
+# This configuration shows how to integrate GenerateTracklets and RefineTracklets
+# into a complete video processing pipeline
+
+# Pipeline modules in order of execution
+modules:
+  # 1. Object Detection
+  detector:
+    _target_: sn_gamestate.wrappers.bbox_detector.yolo_ultralytics_api.YOLOUltralytics
+    model_path: ${model_dir}/yolo/yolo11m.pt
+    cfg:
+      min_confidence: 0.4
+      device: ${device}
+      classes_to_detect: [0]  # person class
+
+  # 2. ReID Feature Extraction  
+  reid:
+    _target_: tracklab.wrappers.PRTReIDStrongSORT
+    cfg:
+      model_path: ${model_dir}/reid/prtreid-soccernet-baseline.onnx
+      device: ${device}
+      max_dist: 0.5
+      max_age: 300
+      n_init: 0
+
+  # 3. Generate Tracklets with Embeddings (NEW)
+  generate_tracklets:
+    _target_: sn_gamestate.wrappers.gta_link.generate_tracklets_api.GenerateTracklets
+    model_path: ${model_dir}/gta_link/feature_extractor_osnet_x1_0.onnx
+    device: ${device}
+
+  # 4. Refine Tracklets (NEW)  
+  refine_tracklets:
+    _target_: sn_gamestate.wrappers.gta_link.refine_tracklets_api.RefineTracklets
+    use_split: true
+    eps: 0.5
+    min_samples: 3
+    max_k: 10
+    min_len: 30
+    merge_dist_thres: 0.3
+    spatial_factor: 1.0
+    batch_size: 50
+
+  # 5. Prepare Visualization (NEW)
+  tracklet_vis:
+    _target_: sn_gamestate.wrappers.gta_link.refine_tracklets_api.TrackletVisualizationEngine
+
+# You can also add other modules:
+# - Calibration modules for camera parameters
+# - Team clustering and jersey number detection
+# - Additional visualization modules
+
+# Usage:
+# python main.py --config-name=gta_link_pipeline_example

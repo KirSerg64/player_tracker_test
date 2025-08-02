@@ -73,9 +73,9 @@ class VisualizationEngineCustom(VisualizationEngine):
                 if detections_pred is not None and not detections_pred.empty:
                     if 'track_id' not in detections_pred.columns:
                         detections_pred['track_id'] = -1
-                    mot_annotations.extend(detections_pred[['track_id', 'bbox_ltwh', 'bbox_conf']].apply(
+                    mot_annotations.extend(detections_pred[['track_id_refined', 'bbox_ltwh', 'bbox_conf']].apply(
                         lambda x: (
-                            f"{image_global_id},{int(x['track_id'])},{x['bbox_ltwh'][0]:.2f},"
+                            f"{image_global_id},{int(x['track_id_refined'])},{x['bbox_ltwh'][0]:.2f},"
                             f"{x['bbox_ltwh'][1]:.2f},{x['bbox_ltwh'][2]:.2f},{x['bbox_ltwh'][3]:.2f},"
                             f"{x['bbox_conf']:.5f},-1,-1,-1\n"
                         ),

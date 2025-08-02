@@ -4,7 +4,6 @@ data/
 models/
 outputs/
 multiruns/
-pretrained_models/
 .vscode/
 notebooks/
 weights/
@@ -143,4 +142,12 @@ dmypy.json
 .pyre/
 .idea/
 .DS_Store
-sn_gamestate\configs\dataset\video.yaml
+sn_gamestate/configs/dataset/video.yaml
+
+# Ignore all files inside pretrained_models/
+pretrained_models/**
+
+# But allow subdirectories and placeholder files
+!pretrained_models/
+!pretrained_models/**/
+!pretrained_models/**/.gitkeep

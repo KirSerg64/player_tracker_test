@@ -1,0 +1,7 @@
+# Tracklet Visualization Engine Configuration
+# This module prepares refined tracklets for visualization
+
+# _target_: sn_gamestate.wrappers.gta_link.refine_tracklets_api.TrackletVisualizationEngine
+
+# No specific parameters needed for basic visualization preparation
+# You can extend this module to add specific visualization options

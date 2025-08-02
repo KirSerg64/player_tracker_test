@@ -14,7 +14,7 @@ from sklearn.cluster import DBSCAN
 from sklearn.preprocessing import StandardScaler
 from scipy.spatial.distance import cdist
 
-from Tracklet import Tracklet
+from .Tracklet import Tracklet
 
 import argparse
 

@@ -1,0 +1,10 @@
+# Generate Tracklets Module Configuration
+# This module generates tracklet embeddings from tracking detections
+
+_target_: sn_gamestate.wrappers.gta_link.generate_tracklets_api.GenerateTracklets
+
+# Feature extractor model path
+model_path: ${model_dir}/gta_link/feature_extractor_osnet_x1_0.onnx
+
+# Device to use for processing ('cuda', 'cpu', or 'auto')
+device: auto

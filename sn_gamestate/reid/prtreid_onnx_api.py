@@ -12,23 +12,23 @@ from tracklab.utils.coordinates import rescale_keypoints
 from tracklab.utils.collate import default_collate
 # from sn_gamestate.reid.prtreid_dataset import ReidDataset
 from prtreid.scripts.main import build_config, build_torchreid_model_engine
-from prtreid.tools.feature_extractor import FeatureExtractor
+from sn_gamestate.tools.feature_extractor_onnx import FeatureExtractor
 from prtreid.utils.imagetools import (
     build_gaussian_heatmaps,
 )
 from tracklab.utils.collate import Unbatchable
 
-import tracklab
-from pathlib import Path
-import onnxruntime
+from albumentations import (
+    Resize, Compose, Normalize
+)
+from albumentations.pytorch import ToTensorV2
 
-
-import prtreid
 from torch.nn import functional as F
 from prtreid.data.masks_transforms import (
     CocoToSixBodyMasks,
     masks_preprocess_transforms,
 )
+from prtreid.utils.constants import bn_correspondants
 from prtreid.utils.tools import extract_test_embeddings
 from prtreid.data.datasets import configure_dataset_class
 
@@ -44,6 +44,17 @@ class PRTONNXReId(DetectionLevelModule):
     output_columns = ["embeddings", "visibility_scores", "body_masks", "role_detection", "role_confidence"]
     forget_columns = ["embeddings", "body_masks"]
     role_mapping = {'ball': 0, 'goalkeeper': 1, 'other': 2, 'player': 3, 'referee': 4, None: -1}
+
+            # ONNX model returns a list of numpy arrays, reconstruct the dictionary format
+    output_names = ['globl', 'backg', 'foreg', 'conct', 'parts', 'bn_globl', 'bn_backg', 'bn_foreg', 'bn_conct', 
+                    'bn_parts', 'globl1', 'backg1', 'foreg1', 'conct1', 'parts1', 'globl2', 'backg2', 'foreg2', 
+                    'conct2', 'parts2', 'globl3', 'backg3', 'foreg3', 'conct3', 'globl4', 'backg4', 'foreg4', 
+                    'conct4', 'parts4', 'all_tensor', 'globl5', 'backg5', 'foreg5', 'conct5', 'parts5']
+
+    CROP_HEIGHT = 256
+    CROP_WIDTH = 128
+    NORM_MEAN = (0.485, 0.456, 0.406), # imagenet mean
+    NORM_STD = (0.229, 0.224, 0.225), # imagenet std
 
     def __init__(
         self,
@@ -76,50 +87,68 @@ class PRTONNXReId(DetectionLevelModule):
         # Register the PoseTrack21ReID dataset to Torchreid that will be instantiated when building Torchreid engine.
         self.training_enabled = training_enabled
         self.feature_extractor = None
+        self.model = None
+        # Build transform functions
+        normalize = Normalize(
+            mean=(0.485, 0.456, 0.406), # imagenet mean
+            std=(0.229, 0.224, 0.225), # imagenet std
+            max_pixel_value=255.0,
+            always_apply=True,
+        )
+        self._image_transfrom = Compose([
+            Resize(self.CROP_HEIGHT, self.CROP_WIDTH),
+            normalize,
+            ToTensorV2(),
+        ])
 
-        cuda = isinstance(self.device, torch.device) and torch.cuda.is_available() and self.device.type != "cpu"  # use CUDA
-        providers = ["CPUExecutionProvider"]
-        if cuda:
-            if "CUDAExecutionProvider" in onnxruntime.get_available_providers():
-                providers.insert(0, "CUDAExecutionProvider")
-            else:  # Only log warning if CUDA was requested but unavailable
-                log.warning("Failed to start ONNX Runtime with CUDA. Using CPU...")
-                device = torch.device("cpu")
-                cuda = False
-        log.info(f"Using ONNX Runtime {providers[0]}")
-        ONNX_PATH = self.cfg.model.load_weights
-        ONNX_PATH = ONNX_PATH.replace(".pth.tar", ".onnx")
-        self.feature_extractor = onnxruntime.InferenceSession(ONNX_PATH, providers=providers)
 
     @torch.no_grad()
     def preprocess(
         self, image, detection: pd.Series, metadata: pd.Series
     ):  # Tensor RGB (1, 3, H, W)
-        mask_w, mask_h = 32, 64
+        # mask_w, mask_h = 32, 64
         l, t, r, b = detection.bbox.ltrb(
             image_shape=(image.shape[1], image.shape[0]), rounded=True
         )
-        crop = image[t:b, l:r]
-        crop = Unbatchable([crop])
+        crop = image[t:b, l:r].copy()
+        crop = self._image_transfrom(**{'image': crop})['image']
+
         batch = {
             "img": crop,
         }
 
         return batch
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def process(self, batch, detections: pd.DataFrame, metadatas: pd.DataFrame):
         im_crops = batch["img"]
-        im_crops = [im_crop.cpu().detach().numpy() for im_crop in im_crops]
+        # im_crops = [im_crop.cpu().detach().numpy() for im_crop in im_crops]
         if "masks" in batch:
             external_parts_masks = batch["masks"]
             external_parts_masks = external_parts_masks.cpu().detach().numpy()
         else:
             external_parts_masks = None
+
+        if self.feature_extractor is None:
+            self.feature_extractor = FeatureExtractor(
+                self.cfg,
+                model_path=self.cfg.model.load_weights,
+                device=self.device,
+                image_size=(self.cfg.data.height, self.cfg.data.width),
+                model=self.model,
+                verbose=False,  # FIXME
+            )
+
         reid_result = self.feature_extractor(
             im_crops, external_parts_masks=external_parts_masks
         )
-        embeddings, visibility_scores, body_masks, _, role_cls_scores = extract_test_embeddings(
+
+        (embeddings, 
+         visibility_scores, 
+         body_masks, 
+         _, 
+         role_cls_scores,
+         ) = self.extract_embeddings(
             reid_result, self.test_embeddings
         )
         
@@ -154,6 +183,51 @@ class PRTONNXReId(DetectionLevelModule):
             index=detections.index,
         )
         return reid_df
+
+    def extract_embeddings(self, model_output, test_embeddings):
+        
+        # Map the first few arrays to base component names
+        embeddings = {}
+        visibility_scores = {}
+        parts_masks = {}
+        
+        for i, name in enumerate(self.output_names[:10]):  # Only process first 10 base components
+            if i < len(model_output):
+                tensor = torch.from_numpy(model_output[i])
+                base_name = ''.join([c for c in name if not c.isdigit()])
+                
+                if base_name not in embeddings:
+                    embeddings[base_name] = tensor
+                    # Create visibility scores with same batch size
+                    batch_size = tensor.shape[0]
+                    visibility_scores[base_name] = torch.ones(batch_size, 1) if len(tensor.shape) < 3 else torch.ones(tensor.shape[:2])
+                    # Create parts masks 
+                    parts_masks[base_name] = tensor if len(tensor.shape) == 4 else torch.ones(batch_size, 1, 64, 32)
+        
+        # Create role classification scores for the calling code
+        role_cls_score = {key: torch.ones(embeddings[key].shape[0], 5) for key in embeddings.keys()}
+        
+        # Process test embeddings
+        embeddings_list = []
+        visibility_scores_list = []
+        embeddings_masks_list = []
+
+        for test_emb in test_embeddings:
+            embds = embeddings[test_emb]
+            embeddings_list.append(embds if len(embds.shape) == 3 else embds.unsqueeze(1))
+            
+            lookup_key = bn_correspondants.get(test_emb, test_emb)
+            vis_scores = visibility_scores[lookup_key]
+            visibility_scores_list.append(vis_scores if len(vis_scores.shape) == 2 else vis_scores.unsqueeze(1))
+            
+            pt_masks = parts_masks[lookup_key]
+            embeddings_masks_list.append(pt_masks if len(pt_masks.shape) == 4 else pt_masks.unsqueeze(1))
+
+        embeddings = torch.cat(embeddings_list, dim=1)
+        visibility_scores = torch.cat(visibility_scores_list, dim=1)
+        embeddings_masks = torch.cat(embeddings_masks_list, dim=1)
+
+        return embeddings, visibility_scores, embeddings_masks, None, role_cls_score
 
     def train(self):
         self.engine, self.model = build_torchreid_model_engine(self.cfg)
