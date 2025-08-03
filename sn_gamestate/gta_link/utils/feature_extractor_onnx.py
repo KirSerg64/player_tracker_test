@@ -69,10 +69,15 @@ class FeatureExtractorOnnx(object):
         pixel_std=[0.229, 0.224, 0.225],
         pixel_norm=True,
         device='cuda',
-        verbose=False
+        verbose=False,
+        optimal_batch_size=8,  # Optimal batch size for ONNX inference
+        enable_batch_padding=True  # Enable padding to optimal batch sizes
     ):
         # Build model
         self.session = None
+        self.optimal_batch_size = optimal_batch_size
+        self.enable_batch_padding = enable_batch_padding
+        
         if model_path and check_isfile(model_path):
             providers = ["CPUExecutionProvider"]
             if device == "cuda":
@@ -81,7 +86,7 @@ class FeatureExtractorOnnx(object):
                 else:  # Only log warning if CUDA was requested but unavailable
                     log.warning("Failed to start ONNX Runtime with CUDA. Using CPU...")
                     device = torch.device("cpu")
-            log.info(f"Using ONNX Runtime {providers[0]}")
+            log.info(f"Using ONNX Runtime {providers[0]} with optimal_batch_size={optimal_batch_size}")
             self.session = onnxruntime.InferenceSession(model_path, providers=providers)            
             self.input_name = self.session.get_inputs()[0].name
             self.output_name = self.session.get_outputs()[0].name
@@ -114,6 +119,39 @@ class FeatureExtractorOnnx(object):
         self.to_pil = to_pil
         self.device = device
 
+    def _pad_batch_to_optimal_size(self, input_batch):
+        """
+        Pad batch to optimal size for better ONNX inference performance.
+        
+        Args:
+            input_batch (torch.Tensor): Input batch tensor
+            
+        Returns:
+            tuple: (padded_batch, original_batch_size)
+        """
+        if not self.enable_batch_padding:
+            return input_batch, input_batch.shape[0]
+        
+        original_batch_size = input_batch.shape[0]
+        
+        # Calculate the optimal padded size
+        if original_batch_size <= self.optimal_batch_size:
+            target_size = self.optimal_batch_size
+        else:
+            # For larger batches, pad to next multiple of optimal_batch_size
+            target_size = ((original_batch_size + self.optimal_batch_size - 1) // self.optimal_batch_size) * self.optimal_batch_size
+        
+        if target_size == original_batch_size:
+            return input_batch, original_batch_size
+        
+        # Create padding using the last sample repeated
+        padding_size = target_size - original_batch_size
+        last_sample = input_batch[-1:].repeat(padding_size, 1, 1, 1)
+        padded_batch = torch.cat([input_batch, last_sample], dim=0)
+        
+        log.debug(f"Padded batch from {original_batch_size} to {target_size} for optimal inference")
+        return padded_batch, original_batch_size
+
     def __call__(self, input):
         if isinstance(input, (list, tuple)):
             if isinstance(input[0], np.ndarray):
@@ -133,13 +171,20 @@ class FeatureExtractorOnnx(object):
         elif isinstance(input, torch.Tensor):
             if input.dim() == 3:
                 input = input.unsqueeze(0)
-            input_batch = input.to(self.device)
+            input_batch = input.cpu()#to(self.device)
         else:
             log.warning(f"Unsupported input type: {type(input)}")      # debug line
             raise NotImplementedError
 
-        input_batch = input_batch.numpy()
+        # Apply batch padding for optimal ONNX inference
+        padded_batch, original_batch_size = self._pad_batch_to_optimal_size(input_batch)
+        padded_batch = padded_batch.numpy()
 
-        features = self.session.run([self.output_name], {self.input_name: input_batch})[0]
+        # Run ONNX inference on the padded batch
+        features = self.session.run([self.output_name], {self.input_name: padded_batch})[0]
+        
+        # Return only the features for the original batch size (remove padding)
+        if original_batch_size < features.shape[0]:
+            features = features[:original_batch_size]
 
         return features

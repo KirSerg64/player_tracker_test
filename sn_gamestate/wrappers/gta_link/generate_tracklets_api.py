@@ -39,13 +39,15 @@ class GenerateTracklets(VideoLevelModule):
     input_columns = ["track_id", "bbox_ltwh", "bbox_conf", "image_id"]
     output_columns = ["tracklets_dict"]
     
-    def __init__(self, model_path: str, device: str = 'auto', **kwargs):
+    def __init__(self, model_path: str, device: str = 'auto', optimal_batch_size: int = 8, enable_batch_padding: bool = True, **kwargs):
         """
         Initialize GenerateTracklets module.
         
         Args:
             model_path (str): Path to the feature extractor ONNX model
             device (str): Device to use ('cuda', 'cpu', or 'auto')
+            optimal_batch_size (int): Optimal batch size for ONNX inference (default: 8)
+            enable_batch_padding (bool): Enable padding to optimal batch sizes (default: True)
             **kwargs: Additional arguments
         """
         super().__init__()
@@ -57,12 +59,16 @@ class GenerateTracklets(VideoLevelModule):
             self.device = device
             
         self.model_path = model_path
+        self.optimal_batch_size = optimal_batch_size
+        self.enable_batch_padding = enable_batch_padding
         
-        # Initialize feature extractor
+        # Initialize feature extractor with batch optimization
         self.extractor = FeatureExtractorOnnx(
             model_name='osnet_x1_0',
             model_path=model_path,
-            device=self.device
+            device=self.device,
+            optimal_batch_size=optimal_batch_size,
+            enable_batch_padding=enable_batch_padding
         )
         
         self.to_pil = T.ToPILImage()
@@ -74,7 +80,8 @@ class GenerateTracklets(VideoLevelModule):
             T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ])
         
-        log.info(f"GenerateTracklets initialized with device: {self.device}")
+        log.info(f"GenerateTracklets initialized with device: {self.device}, "
+                f"optimal_batch_size: {optimal_batch_size}, batch_padding: {enable_batch_padding}")
     
     def process(self, detections: pd.DataFrame, metadatas: pd.DataFrame) -> pd.DataFrame:
         """
@@ -193,7 +200,7 @@ class GenerateTracklets(VideoLevelModule):
             
             # Extract features if we have valid crops
             if input_batch is not None and len(tid2idx) > 0:
-                try:
+                try:                    
                     features = self.extractor(input_batch)
                     
                     # Convert to numpy if needed
@@ -247,15 +254,27 @@ class GenerateTracklets(VideoLevelModule):
             log.error(f"Failed to save tracklets to {output_path}: {e}")
 
 
-def create_generate_tracklets_module(model_path: str, device: str = 'auto') -> GenerateTracklets:
+def create_generate_tracklets_module(
+    model_path: str, 
+    device: str = 'auto', 
+    optimal_batch_size: int = 8, 
+    enable_batch_padding: bool = True
+) -> GenerateTracklets:
     """
     Factory function to create GenerateTracklets module.
     
     Args:
         model_path: Path to feature extractor model
         device: Device to use for processing
+        optimal_batch_size: Optimal batch size for ONNX inference (powers of 2 recommended)
+        enable_batch_padding: Enable padding to optimal batch sizes for better performance
         
     Returns:
         GenerateTracklets: Configured module instance
     """
-    return GenerateTracklets(model_path=model_path, device=device)
+    return GenerateTracklets(
+        model_path=model_path, 
+        device=device,
+        optimal_batch_size=optimal_batch_size,
+        enable_batch_padding=enable_batch_padding
+    )
