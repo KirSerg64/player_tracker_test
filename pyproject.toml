@@ -49,7 +49,7 @@ dependencies = [
     "imageio",
     "chardet",
     "tabulate",
-    "pycocotools",
+#    "pycocotools",
     "thop",
     "seaborn",
 ]

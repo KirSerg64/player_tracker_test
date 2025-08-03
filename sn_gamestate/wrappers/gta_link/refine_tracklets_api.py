@@ -577,13 +577,13 @@ class RefineTracklets(VideoLevelModule):
                 frame_to_image_id = dict(zip(metadatas['frame'], metadatas['id']))
             
             # Extract all detection data from refined tracklets
-            for track_id, tracklet in refined_tracklets.items():
+            for idx, (track_id, tracklet) in enumerate(refined_tracklets.items()):
                 if hasattr(tracklet, 'times') and hasattr(tracklet, 'bboxes'):
                     for i, (time, bbox) in enumerate(zip(tracklet.times, tracklet.bboxes)):
                         # Create detection row
                         detection_row = {
-                            'track_id': track_id,
-                            'track_id_refined': track_id,  # For refined tracklets, these are the same
+                            'track_id': idx, # 
+                            'track_id_refined': track_id,  # For refined tracklets idx from odiginal id's
                             'bbox_ltwh': bbox,
                             'image_id': frame_to_image_id.get(time, time),  # Use metadata mapping or default to time
                             'bbox_conf': 0.9,  # Default confidence for refined tracklets
