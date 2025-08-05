@@ -8,8 +8,8 @@ cfg:
   # path_to_checkpoint: "${model_dir}/yolo/yolo11m.pt"
   # path_to_checkpoint: "${model_dir}/yolo/yolov11m_football_epoch300.pt"
   # path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_best.onnx"
-  path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_batch16_varinput.onnx" 
-  # path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_640_batch16_fp16_simplified.engine"   
+  # path_to_checkpoint: "${model_dir}/yolo/yolov11_football_epoch300_batch16_varinput.onnx" 
+  path_to_checkpoint: "${model_dir}/yolo/yolov11_L4_640_batch1_int8_simplified_ultra.engine"   
   use_slicer: False
   classes: ["ball", "goalkeeper", "person", "player", "referee"]
   min_confidence: 0.4

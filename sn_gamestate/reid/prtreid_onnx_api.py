@@ -30,11 +30,11 @@ from prtreid.data.masks_transforms import (
 )
 from prtreid.utils.constants import bn_correspondants
 from prtreid.utils.tools import extract_test_embeddings
-from prtreid.data.datasets import configure_dataset_class
+# from prtreid.data.datasets import configure_dataset_class
 
 from prtreid.scripts.default_config import engine_run_kwargs
 
-from tracklab.utils.download import download_file
+# from tracklab.utils.download import download_file
 log = logging.getLogger(__name__)
 
 
